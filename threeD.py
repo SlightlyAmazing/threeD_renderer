@@ -18,6 +18,15 @@ default_draw_color = (255,255,0)    #yellow
 default_bg_color = (0,0,0)          #black
 default_width = 2
 
+yellow = (255,255,0)
+cyan = (0,255,255)
+magenta = (255,0,255)
+red = (255,0,0)
+green = (0,255,0)
+blue = (0,0,255)
+black = (0,0,0)
+white = (255,255,255)
+
 RIGHTMOUSEBUTTON = 2
 MIDDLEMOUSEBUTTON = 1
 LEFTMOUSEBUTTON = 0
@@ -273,8 +282,12 @@ class threeDObject(base_classes.baseObject):
         return self.mappedPositions[xyz]
         
     def getLines(self):
-        return [Line(line.color,self.getMappedPosition(line.xyz1)+self.mappedOffset,self.getMappedPosition(line.xyz2)+self.mappedOffset) for line in self.lines]
-
+        line = [Line(line.color,self.getMappedPosition(line.xyz1)+self.mappedOffset,self.getMappedPosition(line.xyz2)+self.mappedOffset) for line in self.lines]
+        if debugManager.Current:
+            print(self.forward)
+            line.append(Line(yellow,self.getMappedPosition(self.forward)*75+self.mappedOffset,self.getMappedPosition(Xyz(0))+self.mappedOffset))
+        return line
+    
     def getPolygons(self):
         return [Polygon(polygon.color,*[self.getMappedPosition(xyz)+self.mappedOffset for xyz in polygon.xyzs]) for polygon in self.polygons]
 
@@ -325,7 +338,7 @@ class threeDObject(base_classes.baseObject):
 
                     th = math.acos(self.forward.x)
                     ph = math.atan2(self.forward.y,self.forward.z) + effect.magnitude
-                    self.forward = Xyz(math.cos(th),math.sin(th)*math.sin(ph),math.sin(th)*math.cos(ph))
+                    self.forward = Xyz(math.cos(th),math.sin(th)*math.sin(ph),math.sin(th)*math.cos(ph))*-1
                 case "Nu":
                     theta = math.acos(newXyz.y/radius)
                     phi = math.atan2(newXyz.x,newXyz.z) + effect.magnitude
