@@ -80,13 +80,15 @@ class threeDTestManager(base_classes.baseManager):
         pyg.draw.aaline(gameManager.Current.scenes["Main"],white,Xy(gameManager.Current.scenes["Main"].get_size())//2-Xy(5,0),Xy(gameManager.Current.scenes["Main"].get_size())//2+Xy(5,0))
 
         if debugManager.Current:
-            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("∆T: "+str(gameManager.Current.delta_time),True,white),Xy(5))
-            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("Pos: "+str(threeDManager.Current.relativePos),True,white),Xy(5,21))
+            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("FPS: "+str(gameManager.Current.actual_fps),True,white),Xy(5))
+            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("∆T: "+str(gameManager.Current.delta_time),True,white),Xy(5,21))
+            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("Pos: "+str(threeDManager.Current.relativePos),True,white),Xy(5,38))
                 
     def onExit(self):
         threeDManager.Current.exit()
 
 def start():
+    debugManager.Current.setTrue()
     settingsManager.Current.addSettingsFile("data","3D","settings")
     gameManager(
         -1,

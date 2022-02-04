@@ -73,6 +73,10 @@ class threeDManager(base_classes.baseManager):
     def resetEffects(self): #f4
         with self.display_lock:
             self.effects = []
+        
+        for threeDObject in self.currentPositions:
+            threeDObject.resetEffects()
+
         self.resetMappedPositions()
 
     def resetMappedPositions(self): #f5
@@ -239,7 +243,7 @@ class threeDObject(base_classes.baseObject):
     Manager = threeDManager
 
     def onInit(self, *args, **kwargs):
-        self.lineWidth = default_width
+        #self.lineWidth = default_width
         
         self.offset = Xyz(0,0,0)
         self.forward = Xyz(0,1,0)
@@ -271,9 +275,14 @@ class threeDObject(base_classes.baseObject):
         for xyz in self.mappedPositions.keys():
             self.mappedPositions[xyz] = self.calculateNewPoint(self.mappedPositions[xyz],effects)
         self.mappedOffset = self.calculateNewOffset(self.mappedOffset,effects)
+        self.forward = self.calculateNewPoint(self.forward,effects)
+
+    def resetEffects(self):
+        self.effects = []
 
     def resetMappedPositions(self):
         self.mappedPositions = {}
+        self.forward = self.calculateNewPoint(Xyz(0,1,0),self.effects)
         self.mappedOffset = self.calculateNewOffset(Xyz(self.offset),self.effects)
             
     def getMappedPosition(self,xyz):
@@ -284,8 +293,8 @@ class threeDObject(base_classes.baseObject):
     def getLines(self):
         line = [Line(line.color,self.getMappedPosition(line.xyz1)+self.mappedOffset,self.getMappedPosition(line.xyz2)+self.mappedOffset) for line in self.lines]
         if debugManager.Current:
-            print(self.forward)
-            line.append(Line(yellow,self.getMappedPosition(self.forward)*75+self.mappedOffset,self.getMappedPosition(Xyz(0))+self.mappedOffset))
+            #print(self.forward)
+            line.append(Line(yellow,self.forward*75+self.mappedOffset,self.getMappedPosition(Xyz(0))+self.mappedOffset))
         return line
     
     def getPolygons(self):
@@ -311,7 +320,7 @@ class threeDObject(base_classes.baseObject):
                     up += effect.magnitude
                     newXyz.z -= effect.magnitude
                 case "Forward":
-                    print(self.forward,math.sqrt(self.forward.x**2+self.forward.y**2+self.forward.z**2))
+                    #print(self.forward,math.sqrt(self.forward.x**2+self.forward.y**2+self.forward.z**2))
                     newXyz += self.forward*effect.magnitude
 
         return newXyz
@@ -335,10 +344,6 @@ class threeDObject(base_classes.baseObject):
                     theta = math.acos(newXyz.x/radius)
                     phi = math.atan2(newXyz.y,newXyz.z) + effect.magnitude
                     newXyz = Xyz(radius*math.cos(theta),radius*math.sin(theta)*math.sin(phi),radius*math.sin(theta)*math.cos(phi))
-
-                    th = math.acos(self.forward.x)
-                    ph = math.atan2(self.forward.y,self.forward.z) + effect.magnitude
-                    self.forward = Xyz(math.cos(th),math.sin(th)*math.sin(ph),math.sin(th)*math.cos(ph))*-1
                 case "Nu":
                     theta = math.acos(newXyz.y/radius)
                     phi = math.atan2(newXyz.x,newXyz.z) + effect.magnitude
