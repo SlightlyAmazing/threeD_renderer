@@ -42,7 +42,7 @@ keydownRepeatTime = 0.01
 class Effect():
 
     def __init__(self, direction, magnitude):
-        self.direction = direction # "Theta"; "Phi"; "Nu"; "Right"; "Forward"; "Up"; "y"; "x"; "z"; "Zoom";
+        self.direction = direction # "Theta"; "Phi"; "Nu"; "Right"; "Forward"; "Up"; "y"; "x"; "z"; "Zoom"; "FOV";
         self.magnitude = magnitude 
  
 class threeDManager(base_classes.baseManager):
@@ -59,11 +59,13 @@ class threeDManager(base_classes.baseManager):
             self.veiwPoint = veiwPoint
         self.relativePos = Xyz(self.veiwPoint)
         self.zoom = 50
+        self.fov = 90
         self.currentPositions = []
         self.mappedPositions = {}
         self.effects = []
-        self.newEffects = []
         self.positionsUpdated = []
+        self.offset = Xyz(0)
+        self.mappedOffset = Xyz(self.offset)
         self.screen_size = Xy(gameManager.Current.scenes[self.scene].get_size())
         if screen_size != None:
             self.screen_size = screen_size
@@ -82,11 +84,15 @@ class threeDManager(base_classes.baseManager):
     def resetMappedPositions(self): #f5
         with self.display_lock:
             self.mappedPositions = {}
+            self.mappedOffset = self.calculateNewOffset(self.offset,self.effects)
             self.relativePos = Xyz(self.veiwPoint)
             self.zoom = 50
+            self.fov = 90
             for effect in self.effects:
                 if effect.direction == "Zoom":
                     self.zoom += effect.magnitude
+                elif effect.direction == "FOV":
+                    self.fov -= effect.magnitude
 
             for threeDObject in self.currentPositions:
                 threeDObject.resetMappedPositions()
@@ -94,11 +100,15 @@ class threeDManager(base_classes.baseManager):
     def addEffects(self,*effects):
         with self.display_lock:
             self.effects.extend(effects)
-            self.newEffects.extend(effects)
+            for xyz in self.mappedPositions.keys():
+                self.mappedPositions[xyz] = self.calculateNewPoint(self.mappedPositions[xyz],effects)
+            self.mappedOffset = self.calculateNewOffset(self.mappedOffset,effects)
             for effect in effects:
                 match effect.direction:
                     case "Zoom":
                         self.zoom += effect.magnitude
+                    case "FOV":
+                        self.fov -= effect.magnitude
             
     def addObjects(self,*objects):
         with self.display_lock:
@@ -107,14 +117,12 @@ class threeDManager(base_classes.baseManager):
     def getMappedPosition(self,xyz):
         if xyz not in self.mappedPositions.keys():
             self.mappedPositions[xyz] = self.calculateNewPoint(xyz,self.effects)
-            self.positionsUpdated.append(xyz)
-        elif xyz not in self.positionsUpdated:
-            self.mappedPositions[xyz] = self.calculateNewPoint(self.mappedPositions[xyz],self.newEffects)
+        if xyz not in self.positionsUpdated:
             self.positionsUpdated.append(xyz)
         return self.mappedPositions[xyz]
 
     def getFullyMappedXyPosition(self,xyz):
-        return self.calculateNewXyPoint(self.getMappedPosition(xyz))
+        return self.calculateNewXyPoint(self.mappedOffset+self.getMappedPosition(xyz))
 
     def getFullyMappedXyPositions(self,xyzs):
         return [self.getFullyMappedXyPosition(xyz) for xyz in xyzs]
@@ -170,16 +178,45 @@ class threeDManager(base_classes.baseManager):
                 
         return newXyz
 
+    def calculateNewOffset(self,offset,effects):
+
+        newXyz = Xyz(offset)
+        
+        forward = 0 # y
+        right = 0 # x
+        up = 0 # z
+        
+        for effect in effects:
+            match effect.direction:
+                case "y":
+                    forward += effect.magnitude
+                    newXyz.y += effect.magnitude
+                case "x":
+                    right += effect.magnitude
+                    newXyz.x -= effect.magnitude
+                case "z":
+                    up += effect.magnitude
+                    newXyz.z -= effect.magnitude
+
+        return newXyz
+
     def calculateNewXyPoint(self, xyz):
         if self.zoom > 100:
             self.zoom = 100
-        elif self.zoom <= 0:
+        elif self.zoom < 1:
             self.zoom = 1
-        y_plane =((self.veiwPoint.y**(1/50))**self.zoom)/(xyz.y if xyz.y > 0 else 1)
+        if self.fov > 100:
+            self.fov = 100
+        elif self.fov < 10:
+            self.fov = 10
+        print((self.screen_size.y//2)/math.tan(math.radians(self.fov/2)))
+        y_plane =((self.veiwPoint.y**(1/50))**self.zoom)-((self.screen_size.y//2)/math.tan(math.radians(self.fov/2)))/(xyz.y if xyz.y > 0 else 1)
         xy = Xy((y_plane*(xyz.x)),-(y_plane*(xyz.z)))
         xy+=self.screen_size//2
         return xy
-                    
+
+    # -((self.screen_size.y//2)/math.tan(math.radians(self.fov/2)))
+
     def display(self):
         with self.display_lock:
             for obj3D in self.currentPositions:
@@ -196,7 +233,6 @@ class threeDManager(base_classes.baseManager):
                     delPos.append(xyz)
             for xyz in delPos:
                 del self.mappedPositions[xyz]
-            self.newEffects = []
             self.positionsUpdated = []
         
     def onEarlyUpdate(self):
@@ -217,26 +253,27 @@ class threeDManager(base_classes.baseManager):
         gameManager.Current.unRegisterObj(self)
 
 class twoDObject(base_classes.baseStruct):
-    pass
-
-class Line(twoDObject):
-
-    def __init__(self,color,xyz1,xyz2):
-        self.xyz1 = xyz1
-        self.xyz2 = xyz2
+    
+    def __init__(self,color,width,*args):
         self.color = color
+        self.width = width
+        self.onInit(*args)
 
-    def __iter__(self):
-        return (self.xyz1,self.xyz2).__iter__()
+    def onInit(self):
+        pass
 
 class Polygon(twoDObject):
 
-    def __init__(self,color,xyz1,xyz2,*xyzs):
+    def onInit(self,xyz1,xyz2,*xyzs):
         self.xyzs = [xyz1,xyz2,*xyzs]
-        self.color = color
 
     def __iter__(self):
         return tuple([*self.xyzs]).__iter__() 
+
+class Line(Polygon):
+
+    def onInit(self,xyz1,xyz2):
+        self.xyzs = [xyz1,xyz2]
 
 class threeDObject(base_classes.baseObject):
     
@@ -247,6 +284,8 @@ class threeDObject(base_classes.baseObject):
         
         self.offset = Xyz(0,0,0)
         self.forward = Xyz(0,1,0)
+        self.up = Xyz(0,0,1)
+        self.right = Xyz(1,0,0)
         
         self.effects = []
 
@@ -276,6 +315,8 @@ class threeDObject(base_classes.baseObject):
             self.mappedPositions[xyz] = self.calculateNewPoint(self.mappedPositions[xyz],effects)
         self.mappedOffset = self.calculateNewOffset(self.mappedOffset,effects)
         self.forward = self.calculateNewPoint(self.forward,effects)
+        self.up = self.calculateNewPoint(self.up,effects)
+        self.right = self.calculateNewPoint(self.right,effects)
 
     def resetEffects(self):
         self.effects = []
@@ -283,6 +324,8 @@ class threeDObject(base_classes.baseObject):
     def resetMappedPositions(self):
         self.mappedPositions = {}
         self.forward = self.calculateNewPoint(Xyz(0,1,0),self.effects)
+        self.up = self.calculateNewPoint(Xyz(0,0,1),self.effects)
+        self.right = self.calculateNewPoint(Xyz(1,0,0),self.effects)
         self.mappedOffset = self.calculateNewOffset(Xyz(self.offset),self.effects)
             
     def getMappedPosition(self,xyz):
@@ -291,14 +334,14 @@ class threeDObject(base_classes.baseObject):
         return self.mappedPositions[xyz]
         
     def getLines(self):
-        line = [Line(line.color,self.getMappedPosition(line.xyz1)+self.mappedOffset,self.getMappedPosition(line.xyz2)+self.mappedOffset) for line in self.lines]
+        line = [Line(line.color,line.width,self.getMappedPosition(line.xyzs[0])+self.mappedOffset,self.getMappedPosition(line.xyzs[1])+self.mappedOffset) for line in self.lines]
         if debugManager.Current:
             #print(self.forward)
-            line.append(Line(yellow,self.forward*75+self.mappedOffset,self.getMappedPosition(Xyz(0))+self.mappedOffset))
+            line.append(Line(yellow, default_width,self.forward*75+self.mappedOffset+self.getMappedPosition(Xyz(0)),self.getMappedPosition(Xyz(0))+self.mappedOffset))
         return line
     
     def getPolygons(self):
-        return [Polygon(polygon.color,*[self.getMappedPosition(xyz)+self.mappedOffset for xyz in polygon.xyzs]) for polygon in self.polygons]
+        return [Polygon(polygon.color,polygon.width,*[self.getMappedPosition(xyz)+self.mappedOffset for xyz in polygon.xyzs]) for polygon in self.polygons]
 
     def calculateNewOffset(self,offset,effects):
 
@@ -322,6 +365,11 @@ class threeDObject(base_classes.baseObject):
                 case "Forward":
                     #print(self.forward,math.sqrt(self.forward.x**2+self.forward.y**2+self.forward.z**2))
                     newXyz += self.forward*effect.magnitude
+                case "Up":
+                    newXyz += self.up*effect.magnitude
+                case "Right":
+                    newXyz +=  self.right*effect.magnitude
+
 
         return newXyz
         
@@ -362,8 +410,8 @@ class threeDControlSchemeBase(base_classes.baseManager):
         timedCallback("RollLeft",keydownRepeatTime,threeDManager.Current.addEffects,Effect("Nu",angleMoveAmount*2)).call()
         timedCallback("Up",keydownRepeatTime,threeDManager.Current.addEffects,Effect("Up",moveAmount)).call()
         timedCallback("Down",keydownRepeatTime,threeDManager.Current.addEffects,Effect("Up",-moveAmount)).call()
-        timedCallback("ZoomIn",keydownRepeatTime,threeDManager.Current.addEffects,Effect("Zoom",moveAmount/100)).call()
-        timedCallback("ZoomOut",keydownRepeatTime,threeDManager.Current.addEffects,Effect("Zoom",-moveAmount/100)).call()
+        timedCallback("ZoomIn",keydownRepeatTime,threeDManager.Current.addEffects,Effect("Zoom",moveAmount)).call()
+        timedCallback("ZoomOut",keydownRepeatTime,threeDManager.Current.addEffects,Effect("Zoom",-moveAmount)).call()
         
         gameManager(None,None,None,{scene:self.inputHandlerExternal})
 
@@ -412,10 +460,18 @@ class defaultThreeDControlScheme(threeDControlSchemeBase):
                         callbackManager.Current.call("RollLeft")
                     case pyg.K_e:
                         callbackManager.Current.call("RollRight")
+                    case pyg.K_0:
+                        callbackManager.Current.call("ZoomIn")
+                    case pyg.K_9:
+                        callbackManager.Current.call("ZoomOut")
                         
             elif event.type == pyg.MOUSEMOTION and event.buttons[LEFTMOUSEBUTTON] == 1:
                 threeDManager.Current.addEffects(Effect("Phi", event.rel[0]*math.radians(0.25)),Effect("Theta", -event.rel[1]*math.radians(0.25)))
             elif event.type == pyg.MOUSEBUTTONDOWN and event.button-1 ==  MIDDLEMOUSEBUTTON:
                 threeDManager.Current.zoom = 50
             elif event.type == pyg.MOUSEWHEEL:
-                threeDManager.Current.addEffects(Effect("Zoom",event.y*2))
+                threeDManager.Current.addEffects(Effect("FOV",event.y*2))
+
+if __name__ == "__main__":
+    import threeD_test
+    threeD_test.start()
