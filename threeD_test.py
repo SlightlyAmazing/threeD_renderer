@@ -45,8 +45,6 @@ class threeDTestManager(base_classes.baseManager):
         threeDManager("3D",bg_color = black,veiwPoint = Xyz(0,500,0))
 
         threeDManager.Current.addEffects(Effect("Right",threeDManager.Current.veiwPoint.x),Effect("Forward",threeDManager.Current.veiwPoint.y),Effect("Up",threeDManager.Current.veiwPoint.z))
-
-        threeDManager.Current.addObjects(threeDObject(lines=[Line(yellow,default_width,Xyz(0),Xyz(0))]))
         
         self.cube = threeDObject(lines = [Line(cyan,default_width,Xyz(100,100,-100),Xyz(-100,100,-100)),Line(cyan,default_width,Xyz(100,-100,-100),Xyz(-100,-100,-100)),Line(cyan,default_width,Xyz(100,-100,100),Xyz(-100,-100,100)),Line(cyan,default_width,Xyz(100,100,100),Xyz(-100,100,100))] ,polygons = [Polygon(cyan,default_width,Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,-100,-100),Xyz(100,100,-100)),Polygon(cyan,default_width,Xyz(-100,100,100),Xyz(-100,-100,100),Xyz(-100,-100,-100),Xyz(-100,100,-100))])
         threeDManager.Current.addObjects(self.cube)
@@ -101,8 +99,7 @@ class threeDTestManager(base_classes.baseManager):
             gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("FPS: "+str(gameManager.Current.actual_fps),True,white),Xy(5)) # difference is 17 y
             gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("∆T: "+str(gameManager.Current.delta_time),True,white),Xy(5,21))
             gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("FOV: "+str(threeDManager.Current.fov),True,white),Xy(5,38))
-            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("Zoom: "+str(threeDManager.Current.zoom),True,white),Xy(5,55))
-            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("Pos: "+str(threeDManager.Current.mappedOffset),True,white),Xy(5,72))
+            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("Pos: "+str(threeDManager.Current.mappedOffset),True,white),Xy(5,55))
                 
     def onExit(self):
         threeDManager.Current.exit()

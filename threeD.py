@@ -1,5 +1,6 @@
 from common_libs import *    
 import pygame as pyg
+import pygame.gfxdraw as pyg_gfxdraw
 from time import sleep
 import math
 from threading import Lock
@@ -42,7 +43,7 @@ keydownRepeatTime = 0.01
 class Effect():
 
     def __init__(self, direction, magnitude):
-        self.direction = direction # "Theta"; "Phi"; "Nu"; "Right"; "Forward"; "Up"; "y"; "x"; "z"; "Zoom"; "FOV";
+        self.direction = direction # "Theta"; "Phi"; "Nu"; "Right"; "Forward"; "Up"; "y"; "x"; "z"; "FOV";
         self.magnitude = magnitude 
  
 class threeDManager(base_classes.baseManager):
@@ -60,6 +61,8 @@ class threeDManager(base_classes.baseManager):
         self.relativePos = Xyz(self.veiwPoint)
         self.zoom = 50
         self.fov = 90
+        self.prev_fov = -1
+        self.prev_veiwPoint = Xyz(-1)
         self.currentPositions = []
         self.mappedPositions = {}
         self.effects = []
@@ -69,6 +72,10 @@ class threeDManager(base_classes.baseManager):
         self.screen_size = Xy(gameManager.Current.scenes[self.scene].get_size())
         if screen_size != None:
             self.screen_size = screen_size
+
+        self.forward = Xyz(0,1,0)
+        self.up = Xyz(0,0,1)
+        self.right = Xyz(1,0,0)
 
         self.update()
 
@@ -88,6 +95,9 @@ class threeDManager(base_classes.baseManager):
             self.relativePos = Xyz(self.veiwPoint)
             self.zoom = 50
             self.fov = 90
+            self.forward = self.calculateNewPoint(Xyz(0,1,0),self.effects,True).getNormalised()
+            self.up = self.calculateNewPoint(Xyz(0,0,1),self.effects,True).getNormalised()
+            self.right = self.calculateNewPoint(Xyz(1,0,0),self.effects,True).getNormalised()
             for effect in self.effects:
                 if effect.direction == "Zoom":
                     self.zoom += effect.magnitude
@@ -103,6 +113,9 @@ class threeDManager(base_classes.baseManager):
             for xyz in self.mappedPositions.keys():
                 self.mappedPositions[xyz] = self.calculateNewPoint(self.mappedPositions[xyz],effects)
             self.mappedOffset = self.calculateNewOffset(self.mappedOffset,effects)
+            self.forward = self.calculateNewPoint(self.forward,effects,True).getNormalised()
+            self.up = self.calculateNewPoint(self.up,effects,True).getNormalised()
+            self.right = self.calculateNewPoint(self.right,effects,True).getNormalised()
             for effect in effects:
                 match effect.direction:
                     case "Zoom":
@@ -127,11 +140,11 @@ class threeDManager(base_classes.baseManager):
     def getFullyMappedXyPositions(self,xyzs):
         return [self.getFullyMappedXyPosition(xyz) for xyz in xyzs]
         
-    def calculateNewPoint(self,xyz,effects):
+    def calculateNewPoint(self,xyz,effects,cardinal_direction = False):
 
         newXyz = Xyz(xyz)
         
-        radius = math.sqrt(xyz.x**2 + xyz.y**2 + xyz.z**2)
+        radius = xyz.getMagnitude()
 
         theta = 0
         phi = 0
@@ -147,34 +160,46 @@ class threeDManager(base_classes.baseManager):
                         continue
                     phi += effect.magnitude
                     theta = math.acos(newXyz.z/radius)
-                    phi = math.atan2(newXyz.y,newXyz.x) + effect.magnitude
+                    if cardinal_direction:
+                        phi = math.atan2(newXyz.y,newXyz.x) - effect.magnitude
+                    else:
+                        phi = math.atan2(newXyz.y,newXyz.x) + effect.magnitude
                     newXyz = Xyz(radius*math.sin(theta)*math.cos(phi),radius*math.sin(theta)*math.sin(phi),radius*math.cos(theta))
                 case "Theta":
                     if radius == 0:
                         continue  
                     theta += effect.magnitude          
                     theta = math.acos(newXyz.x/radius)
-                    phi = math.atan2(newXyz.y,newXyz.z) + effect.magnitude
+                    if cardinal_direction:
+                        phi = math.atan2(newXyz.y,newXyz.z) - effect.magnitude
+                    else:
+                        phi = math.atan2(newXyz.y,newXyz.z) + effect.magnitude
                     newXyz = Xyz(radius*math.cos(theta),radius*math.sin(theta)*math.sin(phi),radius*math.sin(theta)*math.cos(phi))
                 case "Nu":
                     if radius == 0:
                         continue
                     nu += effect.magnitude
                     theta = math.acos(newXyz.y/radius)
-                    phi = math.atan2(newXyz.x,newXyz.z) + effect.magnitude
+                    if cardinal_direction:
+                        phi = math.atan2(newXyz.x,newXyz.z) - effect.magnitude
+                    else:
+                        phi = math.atan2(newXyz.x,newXyz.z) + effect.magnitude
                     newXyz = Xyz(radius*math.sin(theta)*math.sin(phi),radius*math.cos(theta),radius*math.sin(theta)*math.cos(phi))
                 case "Forward":
-                    forward += effect.magnitude
-                    newXyz.y += effect.magnitude
-                    radius = math.sqrt(newXyz.x**2 + newXyz.y**2 + newXyz.z**2)
+                    if not cardinal_direction:
+                        forward += effect.magnitude
+                        newXyz.y += effect.magnitude
+                        radius = math.sqrt(newXyz.x**2 + newXyz.y**2 + newXyz.z**2)
                 case "Right":
-                    right += effect.magnitude
-                    newXyz.x -= effect.magnitude
-                    radius = math.sqrt(newXyz.x**2 + newXyz.y**2 + newXyz.z**2)
+                    if not cardinal_direction:
+                        right += effect.magnitude
+                        newXyz.x -= effect.magnitude
+                        radius = math.sqrt(newXyz.x**2 + newXyz.y**2 + newXyz.z**2)
                 case "Up":
-                    up += effect.magnitude
-                    newXyz.z -= effect.magnitude
-                    radius = math.sqrt(newXyz.x**2 + newXyz.y**2 + newXyz.z**2)
+                    if not cardinal_direction:
+                        up += effect.magnitude
+                        newXyz.z -= effect.magnitude
+                        radius = math.sqrt(newXyz.x**2 + newXyz.y**2 + newXyz.z**2)
                 
         return newXyz
 
@@ -201,21 +226,20 @@ class threeDManager(base_classes.baseManager):
         return newXyz
 
     def calculateNewXyPoint(self, xyz):
-        if self.zoom > 100:
-            self.zoom = 100
-        elif self.zoom < 1:
-            self.zoom = 1
-        if self.fov > 100:
-            self.fov = 100
-        elif self.fov < 10:
-            self.fov = 10
-        print((self.screen_size.y//2)/math.tan(math.radians(self.fov/2)))
-        y_plane =((self.veiwPoint.y**(1/50))**self.zoom)-((self.screen_size.y//2)/math.tan(math.radians(self.fov/2)))/(xyz.y if xyz.y > 0 else 1)
+        if self.fov != self.prev_fov or self.veiwPoint.y != self.prev_veiwPoint.y:
+            if self.fov > 179:
+                self.fov = 179
+            elif self.fov < 1:
+                self.fov = 1
+            self.prev_fov = self.fov
+            self.prev_veiwPoint = self.veiwPoint
+            self.veiwPoint_y_value = ((self.veiwPoint.y)+((self.screen_size.y//2)/math.tan(math.radians(self.fov/2))))
+        
+        y_plane = self.veiwPoint_y_value/(xyz.y if xyz.y > 0 else 1)
+        y_plane = y_plane if y_plane >= 0 else 0
         xy = Xy((y_plane*(xyz.x)),-(y_plane*(xyz.z)))
         xy+=self.screen_size//2
         return xy
-
-    # -((self.screen_size.y//2)/math.tan(math.radians(self.fov/2)))
 
     def display(self):
         with self.display_lock:
@@ -224,6 +248,11 @@ class threeDManager(base_classes.baseManager):
                     pyg.draw.aaline(gameManager.Current.scenes[self.scene],line.color,*self.getFullyMappedXyPositions(line))
                 for polygon in obj3D.getPolygons():
                     pyg.draw.aalines(gameManager.Current.scenes[self.scene],polygon.color,True,self.getFullyMappedXyPositions(polygon))
+                for sphere in obj3D.getSpheres():
+                    pyg_gfxdraw.aacircle(gameManager.Current.scenes[self.scene],*self.getFullyMappedXyPosition(sphere.center).__round__(),int(round((self.getFullyMappedXyPosition(sphere.center+self.right*sphere.radius)-self.getFullyMappedXyPosition(sphere.center)).getMagnitude())),sphere.color)
+            if debugManager.Current:
+                pyg.draw.aaline(gameManager.Current.scenes[self.scene],yellow,*self.getFullyMappedXyPositions([Xyz(0),Xyz(0,15,0)]))
+                pyg_gfxdraw.aacircle(gameManager.Current.scenes[self.scene],*self.getFullyMappedXyPosition(Xyz(0)).__round__(),10,yellow)
 
     def cleanUp(self):
         with self.display_lock:
@@ -275,6 +304,12 @@ class Line(Polygon):
     def onInit(self,xyz1,xyz2):
         self.xyzs = [xyz1,xyz2]
 
+class Sphere(twoDObject):
+
+    def onInit(self,center,radius):
+        self.center = center
+        self.radius = radius
+
 class threeDObject(base_classes.baseObject):
     
     Manager = threeDManager
@@ -291,6 +326,7 @@ class threeDObject(base_classes.baseObject):
 
         self.lines = []
         self.polygons = []
+        self.spheres = []
         self.mappedPositions = {}
 
         self.addPoints(*args, **kwargs)
@@ -334,14 +370,20 @@ class threeDObject(base_classes.baseObject):
         return self.mappedPositions[xyz]
         
     def getLines(self):
-        line = [Line(line.color,line.width,self.getMappedPosition(line.xyzs[0])+self.mappedOffset,self.getMappedPosition(line.xyzs[1])+self.mappedOffset) for line in self.lines]
+        lines = [Line(line.color,line.width,self.getMappedPosition(line.xyzs[0])+self.mappedOffset,self.getMappedPosition(line.xyzs[1])+self.mappedOffset) for line in self.lines]
         if debugManager.Current:
             #print(self.forward)
-            line.append(Line(yellow, default_width,self.forward*75+self.mappedOffset+self.getMappedPosition(Xyz(0)),self.getMappedPosition(Xyz(0))+self.mappedOffset))
-        return line
+            lines.append(Line(yellow, default_width,self.forward*75+self.mappedOffset+self.getMappedPosition(Xyz(0)),self.getMappedPosition(Xyz(0))+self.mappedOffset))
+        return lines
     
     def getPolygons(self):
         return [Polygon(polygon.color,polygon.width,*[self.getMappedPosition(xyz)+self.mappedOffset for xyz in polygon.xyzs]) for polygon in self.polygons]
+
+    def getSpheres(self):
+        spheres = [Sphere(sphere.color,sphere.width,self.getMappedPosition(sphere.centre)+self.mappedOffset,sphere.radius) for sphere in self.spheres]
+        if debugManager.Current:
+            spheres.append(Sphere(yellow,default_width,self.mappedOffset+self.getMappedPosition(Xyz(0)),75))
+        return spheres
 
     def calculateNewOffset(self,offset,effects):
 
@@ -410,8 +452,6 @@ class threeDControlSchemeBase(base_classes.baseManager):
         timedCallback("RollLeft",keydownRepeatTime,threeDManager.Current.addEffects,Effect("Nu",angleMoveAmount*2)).call()
         timedCallback("Up",keydownRepeatTime,threeDManager.Current.addEffects,Effect("Up",moveAmount)).call()
         timedCallback("Down",keydownRepeatTime,threeDManager.Current.addEffects,Effect("Up",-moveAmount)).call()
-        timedCallback("ZoomIn",keydownRepeatTime,threeDManager.Current.addEffects,Effect("Zoom",moveAmount)).call()
-        timedCallback("ZoomOut",keydownRepeatTime,threeDManager.Current.addEffects,Effect("Zoom",-moveAmount)).call()
         
         gameManager(None,None,None,{scene:self.inputHandlerExternal})
 
@@ -460,10 +500,6 @@ class defaultThreeDControlScheme(threeDControlSchemeBase):
                         callbackManager.Current.call("RollLeft")
                     case pyg.K_e:
                         callbackManager.Current.call("RollRight")
-                    case pyg.K_0:
-                        callbackManager.Current.call("ZoomIn")
-                    case pyg.K_9:
-                        callbackManager.Current.call("ZoomOut")
                         
             elif event.type == pyg.MOUSEMOTION and event.buttons[LEFTMOUSEBUTTON] == 1:
                 threeDManager.Current.addEffects(Effect("Phi", event.rel[0]*math.radians(0.25)),Effect("Theta", -event.rel[1]*math.radians(0.25)))
