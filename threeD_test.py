@@ -20,19 +20,11 @@ timedCallback = callbacks.timedCallback
 threeDManager = threeD.threeDManager
 threeDObject = threeD.threeDObject
 debugManager = debug_manager.debugManager()
-defaultThreeDControlScheme = threeD.defaultThreeDControlScheme
 Effect = threeD.Effect
 Line = threeD.Line
 Polygon = threeD.Polygon
+colorManager = colors_manager.colorManager()
 
-yellow = (255,255,0)
-cyan = (0,255,255)
-magenta = (255,0,255)
-red = (255,0,0)
-green = (0,255,0)
-blue = (0,0,255)
-black = (0,0,0)
-white = (255,255,255)
 default_width = 2
 screen_size = Xy(1200,600)
 
@@ -42,21 +34,21 @@ class threeDTestManager(base_classes.baseManager):
 
         gameManager.Current.registerObj(self)
 
-        threeDManager("3D",bg_color = black,veiwPoint = Xyz(0,500,0))
+        threeDManager("3D",bg_color = colorManager.Black,veiwPoint = Xyz(0,500,0))
 
         threeDManager.Current.addEffects(Effect("Right",threeDManager.Current.veiwPoint.x),Effect("Forward",threeDManager.Current.veiwPoint.y),Effect("Up",threeDManager.Current.veiwPoint.z))
         
-        self.cube = threeDObject(lines = [Line(cyan,default_width,Xyz(100,100,-100),Xyz(-100,100,-100)),Line(cyan,default_width,Xyz(100,-100,-100),Xyz(-100,-100,-100)),Line(cyan,default_width,Xyz(100,-100,100),Xyz(-100,-100,100)),Line(cyan,default_width,Xyz(100,100,100),Xyz(-100,100,100))] ,polygons = [Polygon(cyan,default_width,Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,-100,-100),Xyz(100,100,-100)),Polygon(cyan,default_width,Xyz(-100,100,100),Xyz(-100,-100,100),Xyz(-100,-100,-100),Xyz(-100,100,-100))])
+        self.cube = threeDObject(lines = [Line(colorManager.Cyan,default_width,Xyz(100,100,-100),Xyz(-100,100,-100)),Line(colorManager.Cyan,default_width,Xyz(100,-100,-100),Xyz(-100,-100,-100)),Line(colorManager.Cyan,default_width,Xyz(100,-100,100),Xyz(-100,-100,100)),Line(colorManager.Cyan,default_width,Xyz(100,100,100),Xyz(-100,100,100))] ,polygons = [Polygon(colorManager.Cyan,default_width,Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,-100,-100),Xyz(100,100,-100)),Polygon(colorManager.Cyan,default_width,Xyz(-100,100,100),Xyz(-100,-100,100),Xyz(-100,-100,-100),Xyz(-100,100,-100))])
         threeDManager.Current.addObjects(self.cube)
         
-        self.triangularBasedPyramidRight = threeDObject(offset = Xyz(400,0,0), lines = [Line(red,default_width,Xyz(100,100,100),Xyz(-100,0,0)),Line(red, default_width, Xyz(-100,0,0),Xyz(100,-100,100)),Line(red, default_width,Xyz(-100,0,0),Xyz(100,0,-100))], polygons = [Polygon(red, default_width,Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,0,-100))])
+        self.triangularBasedPyramidRight = threeDObject(offset = Xyz(400,0,0), polygons = [Polygon(colorManager.Red, default_width, Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True),Polygon(colorManager.Red, default_width, Xyz(-100,0,0),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True),Polygon(colorManager.Red, default_width, Xyz(100,100,100),Xyz(-100,0,0),Xyz(100,0,-100), solid_fill=True),Polygon(colorManager.Red, default_width, Xyz(100,100,100),Xyz(100,-100,100),Xyz(-100,0,0), solid_fill=True)], opaque = True)
         threeDManager.Current.addObjects(self.triangularBasedPyramidRight)
 
-        self.triangularBasedPyramidLeft = threeDObject(offset = Xyz(-400,0,0), lines = [Line(red, default_width,Xyz(100,100,100),Xyz(-100,0,0)),Line(red, default_width, Xyz(-100,0,0),Xyz(100,-100,100)),Line(red, default_width,Xyz(-100,0,0),Xyz(100,0,-100))], polygons = [Polygon(red, default_width,Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,0,-100))])
+        self.triangularBasedPyramidLeft = threeDObject(offset = Xyz(-400,0,0),  polygons = [Polygon(colorManager.Red, default_width,Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True),Polygon(colorManager.Red, default_width,Xyz(-100,0,0),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True),Polygon(colorManager.Red, default_width,Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True),Polygon(colorManager.Red, default_width,Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True)],opaque = True)
         threeDManager.Current.addObjects(self.triangularBasedPyramidLeft)
         self.triangularBasedPyramidLeft.addEffects(Effect("Phi",math.radians(180)),Effect("Theta",math.radians(180)))
         
-        defaultThreeDControlScheme("Main", self.inputHandler)
+        threeD.defaultThreeDControlScheme("Main", self.inputHandler)
 
     def inputHandler(self,events):
         
@@ -92,14 +84,14 @@ class threeDTestManager(base_classes.baseManager):
 
     def onLateUpdate(self):
         gameManager.Current.scenes["Main"].blit(gameManager.Current.scenes["3D"],Xy(0))
-        pyg.draw.aaline(gameManager.Current.scenes["Main"],white,Xy(gameManager.Current.scenes["Main"].get_size())//2-Xy(0,5),Xy(gameManager.Current.scenes["Main"].get_size())//2+Xy(0,5))
-        pyg.draw.aaline(gameManager.Current.scenes["Main"],white,Xy(gameManager.Current.scenes["Main"].get_size())//2-Xy(5,0),Xy(gameManager.Current.scenes["Main"].get_size())//2+Xy(5,0))
+        pyg.draw.aaline(gameManager.Current.scenes["Main"],colorManager.White,Xy(gameManager.Current.scenes["Main"].get_size())//2-Xy(0,5),Xy(gameManager.Current.scenes["Main"].get_size())//2+Xy(0,5))
+        pyg.draw.aaline(gameManager.Current.scenes["Main"],colorManager.White,Xy(gameManager.Current.scenes["Main"].get_size())//2-Xy(5,0),Xy(gameManager.Current.scenes["Main"].get_size())//2+Xy(5,0))
 
         if debugManager.Current:
-            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("FPS: "+str(gameManager.Current.actual_fps),True,white),Xy(5)) # difference is 17 y
-            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("∆T: "+str(gameManager.Current.delta_time),True,white),Xy(5,21))
-            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("FOV: "+str(threeDManager.Current.fov),True,white),Xy(5,38))
-            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("Pos: "+str(threeDManager.Current.mappedOffset),True,white),Xy(5,55))
+            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("FPS: "+str(gameManager.Current.actual_fps),True,colorManager.White),Xy(5)) # difference is 17 y
+            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("∆T: "+str(gameManager.Current.delta_time),True,colorManager.White),Xy(5,21))
+            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("FOV: "+str(threeDManager.Current.fov),True,colorManager.White),Xy(5,38))
+            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("Pos: "+str(threeDManager.Current.mappedOffset),True,colorManager.White),Xy(5,55))
                 
     def onExit(self):
         threeDManager.Current.exit()

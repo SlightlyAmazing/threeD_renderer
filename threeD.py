@@ -14,19 +14,11 @@ settingsManager = settings_manager.settingsManager()
 callbackManager = callbacks.callbackManager()
 timedCallback = callbacks.timedCallback
 debugManager = debug_manager.debugManager()
+colorManager = colors_manager.colorManager()
 
-default_draw_color = (255,255,0)    #yellow
-default_bg_color = (0,0,0)          #black
+default_draw_color = colorManager.Yellow
+default_bg_color = colorManager.Black
 default_width = 2
-
-yellow = (255,255,0)
-cyan = (0,255,255)
-magenta = (255,0,255)
-red = (255,0,0)
-green = (0,255,0)
-blue = (0,0,255)
-black = (0,0,0)
-white = (255,255,255)
 
 RIGHTMOUSEBUTTON = 2
 MIDDLEMOUSEBUTTON = 1
@@ -247,12 +239,24 @@ class threeDManager(base_classes.baseManager):
                 for line in obj3D.getLines():
                     pyg.draw.aaline(gameManager.Current.scenes[self.scene],line.color,*self.getFullyMappedXyPositions(line))
                 for polygon in obj3D.getPolygons():
-                    pyg.draw.aalines(gameManager.Current.scenes[self.scene],polygon.color,True,self.getFullyMappedXyPositions(polygon))
+                    formed_polygon = (gameManager.Current.scenes[self.scene],self.getFullyMappedXyPositions(polygon),polygon.color)
+                    pyg_gfxdraw.aapolygon(*formed_polygon)
+                    if obj3D.opaque and polygon.solid_fill:
+                        pyg_gfxdraw.filled_polygon(*formed_polygon)
                 for sphere in obj3D.getSpheres():
-                    pyg_gfxdraw.aacircle(gameManager.Current.scenes[self.scene],*self.getFullyMappedXyPosition(sphere.center).__round__(),int(round((self.getFullyMappedXyPosition(sphere.center+self.right*sphere.radius)-self.getFullyMappedXyPosition(sphere.center)).getMagnitude())),sphere.color)
+                    centre = self.getFullyMappedXyPosition(sphere.center).__round__()
+                    radius = int(round((self.getFullyMappedXyPosition(sphere.center+self.right*sphere.radius)-self.getFullyMappedXyPosition(sphere.center)).getMagnitude()))
+                    if radius > 9999 or radius <= 0 or max(centre)>9999 or min(centre)<-9999:
+                        continue
+                    formed_circle = (gameManager.Current.scenes[self.scene],*centre,radius,sphere.color)
+                    pyg_gfxdraw.aacircle(*formed_circle)
+                    if obj3D.opaque and sphere.solid_fill:
+                        pyg_gfxdraw.filled_circle(*formed_circle)
             if debugManager.Current:
-                pyg.draw.aaline(gameManager.Current.scenes[self.scene],yellow,*self.getFullyMappedXyPositions([Xyz(0),Xyz(0,15,0)]))
-                pyg_gfxdraw.aacircle(gameManager.Current.scenes[self.scene],*self.getFullyMappedXyPosition(Xyz(0)).__round__(),10,yellow)
+                pyg.draw.aaline(gameManager.Current.scenes[self.scene],colorManager.Yellow,*self.getFullyMappedXyPositions([Xyz(0),Xyz(0,15,0)]))
+                centre = self.getFullyMappedXyPosition(Xyz(0)).__round__()
+                if not (max(centre)>9999 or min(centre)<-9999):
+                    pyg_gfxdraw.aacircle(gameManager.Current.scenes[self.scene],*centre,10,colorManager.Yellow)
 
     def cleanUp(self):
         with self.display_lock:
@@ -283,10 +287,17 @@ class threeDManager(base_classes.baseManager):
 
 class twoDObject(base_classes.baseStruct):
     
-    def __init__(self,color,width,*args):
-        self.color = color
-        self.width = width
-        self.onInit(*args)
+    def __init__(self,*args,over_wright = None, color = None,width = None, solid_fill:bool = False):
+        if isinstance(over_wright,twoDObject):
+            self = over_wright
+        if color !=None:
+            self.color = color
+        if width !=None:
+            self.width = width
+        if over_wright==None:
+            self.solid_fill = solid_fill
+        if args != None:
+            self.onInit(*args)
 
     def onInit(self):
         pass
@@ -314,7 +325,7 @@ class threeDObject(base_classes.baseObject):
     
     Manager = threeDManager
 
-    def onInit(self, *args, **kwargs):
+    def onInit(self,lines=None,polygons = None,offset = None,lineWidth=None,opaque:bool = False):
         #self.lineWidth = default_width
         
         self.offset = Xyz(0,0,0)
@@ -329,13 +340,15 @@ class threeDObject(base_classes.baseObject):
         self.spheres = []
         self.mappedPositions = {}
 
-        self.addPoints(*args, **kwargs)
+        self.opaque = opaque
+
+        self.addPoints(lines,polygons,offset,lineWidth)
         
         self.mappedOffset = Xyz(self.offset)
 
         self.update()
 
-    def addPoints(self,lines=None,polygons = None,offset = None,lineWidth=None):
+    def addPoints(self,lines,polygons,offset,lineWidth):
         if lines != None:
             self.lines.extend(lines)
         if polygons != None:
@@ -370,19 +383,19 @@ class threeDObject(base_classes.baseObject):
         return self.mappedPositions[xyz]
         
     def getLines(self):
-        lines = [Line(line.color,line.width,self.getMappedPosition(line.xyzs[0])+self.mappedOffset,self.getMappedPosition(line.xyzs[1])+self.mappedOffset) for line in self.lines]
+        lines = [Line(self.getMappedPosition(line.xyzs[0])+self.mappedOffset,self.getMappedPosition(line.xyzs[1])+self.mappedOffset,over_wright=line) for line in self.lines]
         if debugManager.Current:
             #print(self.forward)
-            lines.append(Line(yellow, default_width,self.forward*75+self.mappedOffset+self.getMappedPosition(Xyz(0)),self.getMappedPosition(Xyz(0))+self.mappedOffset))
+            lines.append(Line(self.forward*75+self.mappedOffset+self.getMappedPosition(Xyz(0)),self.getMappedPosition(Xyz(0))+self.mappedOffset,color=colorManager.Yellow, width=default_width))
         return lines
     
     def getPolygons(self):
-        return [Polygon(polygon.color,polygon.width,*[self.getMappedPosition(xyz)+self.mappedOffset for xyz in polygon.xyzs]) for polygon in self.polygons]
+        return [Polygon(*[self.getMappedPosition(xyz)+self.mappedOffset for xyz in polygon.xyzs],over_wright=polygon) for polygon in self.polygons]
 
     def getSpheres(self):
-        spheres = [Sphere(sphere.color,sphere.width,self.getMappedPosition(sphere.centre)+self.mappedOffset,sphere.radius) for sphere in self.spheres]
+        spheres = [Sphere(self.getMappedPosition(sphere.centre)+self.mappedOffset,sphere.radius,over_wright=sphere) for sphere in self.spheres]
         if debugManager.Current:
-            spheres.append(Sphere(yellow,default_width,self.mappedOffset+self.getMappedPosition(Xyz(0)),75))
+            spheres.append(Sphere(self.mappedOffset+self.getMappedPosition(Xyz(0)),75,color=colorManager.Yellow,width=default_width))
         return spheres
 
     def calculateNewOffset(self,offset,effects):
