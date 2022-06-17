@@ -237,6 +237,7 @@ class threeDManager(base_classes.baseManager):
         with self.display_lock:
             for obj3D in self.currentPositions:
                 for line in obj3D.getLines():
+                    #print(line,line.xyzs,line.color5)
                     pyg.draw.aaline(gameManager.Current.scenes[self.scene],line.color,*self.getFullyMappedXyPositions(line))
                 for polygon in obj3D.getPolygons():
                     formed_polygon = (gameManager.Current.scenes[self.scene],self.getFullyMappedXyPositions(polygon),polygon.color)
@@ -286,15 +287,24 @@ class threeDManager(base_classes.baseManager):
         gameManager.Current.unRegisterObj(self)
 
 class twoDObject(base_classes.baseStruct):
-    
-    def __init__(self,*args,over_wright = None, color = None,width = None, solid_fill:bool = False):
-        if isinstance(over_wright,twoDObject):
-            self = over_wright
-        if color !=None:
+
+    def __new__(cls,*args,over_wright= None,**kwargs):
+        self = super().__new__(cls)
+        if isinstance(over_wright,cls):
+            self.color = over_wright.color
+            self.width = over_wright.width
+            self.solid_fill = over_wright.solid_fill
+        else:
+            self = super().__new__(cls)
+            self.solid_fill = False
+        return self
+
+    def __init__(self,*args, color = None,width = None, solid_fill = None,over_wright= None):
+        if color != None:
             self.color = color
-        if width !=None:
+        if width != None:
             self.width = width
-        if over_wright==None:
+        if solid_fill != None:
             self.solid_fill = solid_fill
         if args != None:
             self.onInit(*args)
@@ -383,9 +393,8 @@ class threeDObject(base_classes.baseObject):
         return self.mappedPositions[xyz]
         
     def getLines(self):
-        lines = [Line(self.getMappedPosition(line.xyzs[0])+self.mappedOffset,self.getMappedPosition(line.xyzs[1])+self.mappedOffset,over_wright=line) for line in self.lines]
+        lines = [Line((self.getMappedPosition(line.xyzs[0])+self.mappedOffset),(self.getMappedPosition(line.xyzs[1])+self.mappedOffset),over_wright=line) for line in self.lines]
         if debugManager.Current:
-            #print(self.forward)
             lines.append(Line(self.forward*75+self.mappedOffset+self.getMappedPosition(Xyz(0)),self.getMappedPosition(Xyz(0))+self.mappedOffset,color=colorManager.Yellow, width=default_width))
         return lines
     

@@ -38,13 +38,13 @@ class threeDTestManager(base_classes.baseManager):
 
         threeDManager.Current.addEffects(Effect("Right",threeDManager.Current.veiwPoint.x),Effect("Forward",threeDManager.Current.veiwPoint.y),Effect("Up",threeDManager.Current.veiwPoint.z))
         
-        self.cube = threeDObject(lines = [Line(colorManager.Cyan,default_width,Xyz(100,100,-100),Xyz(-100,100,-100)),Line(colorManager.Cyan,default_width,Xyz(100,-100,-100),Xyz(-100,-100,-100)),Line(colorManager.Cyan,default_width,Xyz(100,-100,100),Xyz(-100,-100,100)),Line(colorManager.Cyan,default_width,Xyz(100,100,100),Xyz(-100,100,100))] ,polygons = [Polygon(colorManager.Cyan,default_width,Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,-100,-100),Xyz(100,100,-100)),Polygon(colorManager.Cyan,default_width,Xyz(-100,100,100),Xyz(-100,-100,100),Xyz(-100,-100,-100),Xyz(-100,100,-100))])
+        self.cube = threeDObject(lines = [Line(Xyz(100,100,-100),Xyz(-100,100,-100),color = colorManager.Cyan,width = default_width),Line(Xyz(100,-100,-100),Xyz(-100,-100,-100),color = colorManager.Cyan,width = default_width),Line(Xyz(100,-100,100),Xyz(-100,-100,100),color = colorManager.Cyan,width = default_width),Line(Xyz(100,100,100),Xyz(-100,100,100),color = colorManager.Cyan,width = default_width)] ,polygons = [Polygon(Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,-100,-100),Xyz(100,100,-100),color = colorManager.Cyan,width = default_width),Polygon(Xyz(-100,100,100),Xyz(-100,-100,100),Xyz(-100,-100,-100),Xyz(-100,100,-100),color = colorManager.Cyan,width = default_width)])
         threeDManager.Current.addObjects(self.cube)
         
-        self.triangularBasedPyramidRight = threeDObject(offset = Xyz(400,0,0), polygons = [Polygon(colorManager.Red, default_width, Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True),Polygon(colorManager.Red, default_width, Xyz(-100,0,0),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True),Polygon(colorManager.Red, default_width, Xyz(100,100,100),Xyz(-100,0,0),Xyz(100,0,-100), solid_fill=True),Polygon(colorManager.Red, default_width, Xyz(100,100,100),Xyz(100,-100,100),Xyz(-100,0,0), solid_fill=True)], opaque = True)
+        self.triangularBasedPyramidRight = threeDObject(offset = Xyz(400,0,0), polygons = [Polygon(Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True,color = colorManager.Red,width = default_width),Polygon(Xyz(-100,0,0),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True,color = colorManager.Red,width = default_width),Polygon(Xyz(100,100,100),Xyz(-100,0,0),Xyz(100,0,-100), solid_fill=True,color = colorManager.Red,width = default_width),Polygon(Xyz(100,100,100),Xyz(100,-100,100),Xyz(-100,0,0), solid_fill=True,color = colorManager.Red,width = default_width)], opaque = True)
         threeDManager.Current.addObjects(self.triangularBasedPyramidRight)
 
-        self.triangularBasedPyramidLeft = threeDObject(offset = Xyz(-400,0,0),  polygons = [Polygon(colorManager.Red, default_width,Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True),Polygon(colorManager.Red, default_width,Xyz(-100,0,0),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True),Polygon(colorManager.Red, default_width,Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True),Polygon(colorManager.Red, default_width,Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True)],opaque = True)
+        self.triangularBasedPyramidLeft = threeDObject(offset = Xyz(-400,0,0),  polygons = [Polygon(Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True,color = colorManager.Red,width = default_width),Polygon(Xyz(-100,0,0),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True,color = colorManager.Red,width = default_width),Polygon(Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True,color = colorManager.Red,width = default_width),Polygon(Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True,color = colorManager.Red,width = default_width)],opaque = True)
         threeDManager.Current.addObjects(self.triangularBasedPyramidLeft)
         self.triangularBasedPyramidLeft.addEffects(Effect("Phi",math.radians(180)),Effect("Theta",math.radians(180)))
         
@@ -106,6 +106,7 @@ def start():
         None
         )
     threadManager.Current.startTasks([pygameManager,screen_size,"3D stuff",gameManager.Current.userInput])
+    #pygameManager(screen_size,"")
     gameManager(
         None,
         None,
