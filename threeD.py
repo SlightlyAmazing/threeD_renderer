@@ -50,9 +50,10 @@ class threeDManager(base_classes.baseManager):
         self.veiwPoint = Xyz(0,500,0)
         if veiwPoint != None:
             self.veiwPoint = veiwPoint
-        self.relativePos = Xyz(self.veiwPoint)
-        self.zoom = 50
+        self.screen_size = Xy(gameManager.Current.scenes[self.scene].get_size())
         self.fov = 90
+        self.veiwPoint_y_value = ((self.veiwPoint.y)+((self.screen_size.y//2)/math.tan(math.radians(self.fov/2))))
+        self.zoom = 50
         self.prev_fov = -1
         self.prev_veiwPoint = Xyz(-1)
         self.currentPositions = []
@@ -61,9 +62,9 @@ class threeDManager(base_classes.baseManager):
         self.positionsUpdated = []
         self.offset = Xyz(0)
         self.mappedOffset = Xyz(self.offset)
-        self.screen_size = Xy(gameManager.Current.scenes[self.scene].get_size())
         if screen_size != None:
             self.screen_size = screen_size
+        self.relativePos = Xyz(0,self.veiwPoint.y-self.veiwPoint_y_value,0)
 
         self.forward = Xyz(0,1,0)
         self.up = Xyz(0,0,1)
@@ -114,6 +115,7 @@ class threeDManager(base_classes.baseManager):
                         self.zoom += effect.magnitude
                     case "FOV":
                         self.fov -= effect.magnitude
+
             
     def addObjects(self,*objects):
         with self.display_lock:
@@ -236,6 +238,8 @@ class threeDManager(base_classes.baseManager):
     def display(self):
         with self.display_lock:
             for obj3D in self.currentPositions:
+                if (self.relativePos-obj3D.offset).getMagnitude()-obj3D.radius >= 0:
+                    return
                 for line in obj3D.getLines():
                     #print(line,line.xyzs,line.color5)
                     pyg.draw.aaline(gameManager.Current.scenes[self.scene],line.color,*self.getFullyMappedXyPositions(line))
@@ -335,7 +339,7 @@ class threeDObject(base_classes.baseObject):
     
     Manager = threeDManager
 
-    def onInit(self,lines=None,polygons = None,offset = None,lineWidth=None,opaque:bool = False):
+    def onInit(self,lines=None,polygons = None,spheres = None,offset = None,opaque:bool = False):
         #self.lineWidth = default_width
         
         self.offset = Xyz(0,0,0)
@@ -343,6 +347,8 @@ class threeDObject(base_classes.baseObject):
         self.up = Xyz(0,0,1)
         self.right = Xyz(1,0,0)
         
+        self.radius = 0
+
         self.effects = []
 
         self.lines = []
@@ -352,21 +358,22 @@ class threeDObject(base_classes.baseObject):
 
         self.opaque = opaque
 
-        self.addPoints(lines,polygons,offset,lineWidth)
+        self.addPoints(lines,polygons,spheres,offset)
         
         self.mappedOffset = Xyz(self.offset)
 
         self.update()
 
-    def addPoints(self,lines,polygons,offset,lineWidth):
+    def addPoints(self,lines,polygons,spheres,offset):
         if lines != None:
             self.lines.extend(lines)
         if polygons != None:
             self.polygons.extend(polygons)
+        if spheres != None:
+            self.spheres.extend(spheres)
         if offset != None:
             self.offset = offset
-        if lineWidth != None:
-            self.lineWidth = lineWidth
+        self.calculateRadius()
 
     def addEffects(self,*effects):
         self.effects.extend(effects)
@@ -386,6 +393,21 @@ class threeDObject(base_classes.baseObject):
         self.up = self.calculateNewPoint(Xyz(0,0,1),self.effects)
         self.right = self.calculateNewPoint(Xyz(1,0,0),self.effects)
         self.mappedOffset = self.calculateNewOffset(Xyz(self.offset),self.effects)
+
+    def calculateRadius(self):
+        max_distance = 0
+        for line in self.lines:
+            for point in line:
+                if point.getMagnitude() >= max_distance:
+                    max_distance = point.getMagnitude()
+        for polygons in self.polygons:
+            for point in polygons:
+                if point.getMagnitude() >= max_distance:
+                    max_distance = point.getMagnitude()
+        for sphere in self.spheres:
+            if sphere.centre.getMagnitude()+sphere.radius >= max_distance:
+                    max_distance = sphere.centre.getMagnitude()+sphere.radius 
+        self.radius = max_distance
             
     def getMappedPosition(self,xyz):
         if xyz not in self.mappedPositions.keys():
@@ -404,7 +426,7 @@ class threeDObject(base_classes.baseObject):
     def getSpheres(self):
         spheres = [Sphere(self.getMappedPosition(sphere.centre)+self.mappedOffset,sphere.radius,over_wright=sphere) for sphere in self.spheres]
         if debugManager.Current:
-            spheres.append(Sphere(self.mappedOffset+self.getMappedPosition(Xyz(0)),75,color=colorManager.Yellow,width=default_width))
+            spheres.append(Sphere(self.mappedOffset+self.getMappedPosition(Xyz(0)),self.radius,color=colorManager.Yellow,width=default_width))
         return spheres
 
     def calculateNewOffset(self,offset,effects):

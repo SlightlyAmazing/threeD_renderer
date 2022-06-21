@@ -44,7 +44,7 @@ class threeDTestManager(base_classes.baseManager):
         self.triangularBasedPyramidRight = threeDObject(offset = Xyz(400,0,0), polygons = [Polygon(Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True,color = colorManager.Red,width = default_width),Polygon(Xyz(-100,0,0),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True,color = colorManager.Red,width = default_width),Polygon(Xyz(100,100,100),Xyz(-100,0,0),Xyz(100,0,-100), solid_fill=True,color = colorManager.Red,width = default_width),Polygon(Xyz(100,100,100),Xyz(100,-100,100),Xyz(-100,0,0), solid_fill=True,color = colorManager.Red,width = default_width)], opaque = True)
         threeDManager.Current.addObjects(self.triangularBasedPyramidRight)
 
-        self.triangularBasedPyramidLeft = threeDObject(offset = Xyz(-400,0,0),  polygons = [Polygon(Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True,color = colorManager.Red,width = default_width),Polygon(Xyz(-100,0,0),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True,color = colorManager.Red,width = default_width),Polygon(Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True,color = colorManager.Red,width = default_width),Polygon(Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True,color = colorManager.Red,width = default_width)],opaque = True)
+        self.triangularBasedPyramidLeft = threeDObject(offset = Xyz(-400,0,0),  polygons = [Polygon(Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True,color = colorManager.Red,width = default_width),Polygon(Xyz(-100,0,0),Xyz(100,-100,100),Xyz(100,0,-100), solid_fill=True,color = colorManager.Red,width = default_width),Polygon(Xyz(100,100,100),Xyz(-100,0,0),Xyz(100,0,-100), solid_fill=True,color = colorManager.Red,width = default_width),Polygon(Xyz(100,100,100),Xyz(100,-100,100),Xyz(-100,0,0), solid_fill=True,color = colorManager.Red,width = default_width)],opaque = True)
         threeDManager.Current.addObjects(self.triangularBasedPyramidLeft)
         self.triangularBasedPyramidLeft.addEffects(Effect("Phi",math.radians(180)),Effect("Theta",math.radians(180)))
         
@@ -91,7 +91,7 @@ class threeDTestManager(base_classes.baseManager):
             gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("FPS: "+str(gameManager.Current.actual_fps),True,colorManager.White),Xy(5)) # difference is 17 y
             gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("∆T: "+str(gameManager.Current.delta_time),True,colorManager.White),Xy(5,21))
             gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("FOV: "+str(threeDManager.Current.fov),True,colorManager.White),Xy(5,38))
-            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("Pos: "+str(threeDManager.Current.mappedOffset),True,colorManager.White),Xy(5,55))
+            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("Pos: "+str(threeDManager.Current.relativePos),True,colorManager.White),Xy(5,55))
                 
     def onExit(self):
         threeDManager.Current.exit()
