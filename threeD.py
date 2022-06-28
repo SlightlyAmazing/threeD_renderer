@@ -37,6 +37,11 @@ class Effect():
     def __init__(self, direction, magnitude):
         self.direction = direction # "Theta"; "Phi"; "Nu"; "Right"; "Forward"; "Up"; "y"; "x"; "z"; "FOV";
         self.magnitude = magnitude 
+
+    def __repr__(self):
+        return "Effect("+str(self.direction) +"," + str(self.magnitude)+")"
+    def __str__(self):
+        return "Magnitude: "+str(self.magnitude)+", In direction: "+str(self.direction)
  
 class threeDManager(base_classes.baseManager):
 
@@ -64,7 +69,7 @@ class threeDManager(base_classes.baseManager):
         self.mappedOffset = Xyz(self.offset)
         if screen_size != None:
             self.screen_size = screen_size
-        self.relativePos = Xyz(0,self.veiwPoint.y-self.veiwPoint_y_value,0)
+        self.relativePos = Xyz(0)
 
         self.forward = Xyz(0,1,0)
         self.up = Xyz(0,0,1)
@@ -85,12 +90,12 @@ class threeDManager(base_classes.baseManager):
         with self.display_lock:
             self.mappedPositions = {}
             self.mappedOffset = self.calculateNewOffset(self.offset,self.effects)
-            self.relativePos = Xyz(self.veiwPoint)
+            self.relativePos = Xyz(0)
             self.zoom = 50
             self.fov = 90
-            self.forward = self.calculateNewPoint(Xyz(0,1,0),self.effects,True).getNormalised()
-            self.up = self.calculateNewPoint(Xyz(0,0,1),self.effects,True).getNormalised()
-            self.right = self.calculateNewPoint(Xyz(1,0,0),self.effects,True).getNormalised()
+            self.forward = self.calculateNewPoint(Xyz(0,1,0),self.effects,True,original = True).getNormalised()
+            self.up = self.calculateNewPoint(Xyz(0,0,1),self.effects,True,original = True).getNormalised()
+            self.right = self.calculateNewPoint(Xyz(1,0,0),self.effects,True,original = True).getNormalised()
             for effect in self.effects:
                 if effect.direction == "Zoom":
                     self.zoom += effect.magnitude
@@ -115,15 +120,43 @@ class threeDManager(base_classes.baseManager):
                         self.zoom += effect.magnitude
                     case "FOV":
                         self.fov -= effect.magnitude
-
             
+            if len(self.effects) >= 100:
+                effectTheta = Effect("Theta",0)
+                effectPhi = Effect("Phi",0)
+                effectNu = Effect("Nu",0)
+                effectFOV = Effect("FOV",0)
+                effects = [effectTheta,effectPhi,effectNu,effectFOV]
+                for effect in self.effects: # "Theta"; "Phi"; "Nu"; "FOV"; "lRight"; "lForward"; "lUp" # "Right"; "Forward"; "Up";
+                    if effect.direction == "Theta":
+                        effectTheta.magnitude += effect.magnitude
+                    elif effect.direction == "Phi":
+                        effectPhi.magnitude += effect.magnitude
+                    elif effect.direction == "Nu":
+                        effectNu.magnitude += effect.magnitude
+                    elif effect.direction == "FOV":
+                        effectFOV.magnitude += effect.magnitude
+                xyz = self.calculateNewPoint(Xyz(0),self.effects,original = True) + self.calculateNewOffset(Xyz(0),self.effects)
+                effects.append(Effect("lRight",round(xyz.x)))
+                effects.append(Effect("lForward",round(xyz.y)))
+                effects.append(Effect("lUp",round(xyz.z)))
+
+                to_remove = []
+                for effect in effects:
+                    if round(effect.magnitude) == 0:
+                        to_remove.append(effect)
+                for effect in to_remove:
+                    effects.remove(effect)
+
+                self.effects = effects
+
     def addObjects(self,*objects):
         with self.display_lock:
             self.currentPositions.extend(objects)
     
     def getMappedPosition(self,xyz):
         if xyz not in self.mappedPositions.keys():
-            self.mappedPositions[xyz] = self.calculateNewPoint(xyz,self.effects)
+            self.mappedPositions[xyz] = self.calculateNewPoint(xyz,self.effects,original = True)
         if xyz not in self.positionsUpdated:
             self.positionsUpdated.append(xyz)
         return self.mappedPositions[xyz]
@@ -134,11 +167,20 @@ class threeDManager(base_classes.baseManager):
     def getFullyMappedXyPositions(self,xyzs):
         return [self.getFullyMappedXyPosition(xyz) for xyz in xyzs]
         
-    def calculateNewPoint(self,xyz,effects,cardinal_direction = False):
-
+    def calculateNewPoint(self,xyz,effects,cardinal_direction = False,original = True):                       
         newXyz = Xyz(xyz)
-        
-        radius = xyz.getMagnitude()
+
+        if original:
+            for effect in effects:
+                match effect.direction:
+                    case "lRight":
+                        newXyz.x+= effect.magnitude
+                    case "lForward":
+                        newXyz.y+= effect.magnitude
+                    case "lUp":
+                        newXyz.z+= effect.magnitude
+
+        radius = newXyz.getMagnitude()
 
         theta = 0
         phi = 0
@@ -198,7 +240,6 @@ class threeDManager(base_classes.baseManager):
         return newXyz
 
     def calculateNewOffset(self,offset,effects):
-
         newXyz = Xyz(offset)
         
         forward = 0 # y
@@ -238,8 +279,8 @@ class threeDManager(base_classes.baseManager):
     def display(self):
         with self.display_lock:
             for obj3D in self.currentPositions:
-                if (self.relativePos-obj3D.offset).getMagnitude()-obj3D.radius >= 0:
-                    return
+                #if (self.relativePos-obj3D.offset).getMagnitude()-obj3D.radius >= 0:
+                 #   return
                 for line in obj3D.getLines():
                     #print(line,line.xyzs,line.color5)
                     pyg.draw.aaline(gameManager.Current.scenes[self.scene],line.color,*self.getFullyMappedXyPositions(line))
@@ -251,7 +292,7 @@ class threeDManager(base_classes.baseManager):
                 for sphere in obj3D.getSpheres():
                     centre = self.getFullyMappedXyPosition(sphere.center).__round__()
                     radius = int(round((self.getFullyMappedXyPosition(sphere.center+self.right*sphere.radius)-self.getFullyMappedXyPosition(sphere.center)).getMagnitude()))
-                    if radius > 9999 or radius <= 0 or max(centre)>9999 or min(centre)<-9999:
+                    if radius > 9999 or radius <= 0 or max(centre) > 9999 or min(centre) < -9999:
                         continue
                     formed_circle = (gameManager.Current.scenes[self.scene],*centre,radius,sphere.color)
                     pyg_gfxdraw.aacircle(*formed_circle)
@@ -509,8 +550,6 @@ class threeDControlSchemeBase(base_classes.baseManager):
                         threeDManager.Current.resetMappedPositions()
                     case pyg.K_F4:
                         threeDManager.Current.resetEffects()
-                    case pyg.K_F3:
-                        debugManager.Current.cycle()
                     case pyg.K_F1:
                         threeDManager.Current.printPositions()
                         

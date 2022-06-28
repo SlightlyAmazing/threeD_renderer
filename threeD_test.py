@@ -36,7 +36,7 @@ class threeDTestManager(base_classes.baseManager):
 
         threeDManager("3D",bg_color = colorManager.Black,veiwPoint = Xyz(0,500,0))
 
-        threeDManager.Current.addEffects(Effect("Right",threeDManager.Current.veiwPoint.x),Effect("Forward",threeDManager.Current.veiwPoint.y),Effect("Up",threeDManager.Current.veiwPoint.z))
+        threeDManager.Current.addEffects(Effect("Forward",500))
         
         self.cube = threeDObject(lines = [Line(Xyz(100,100,-100),Xyz(-100,100,-100),color = colorManager.Cyan,width = default_width),Line(Xyz(100,-100,-100),Xyz(-100,-100,-100),color = colorManager.Cyan,width = default_width),Line(Xyz(100,-100,100),Xyz(-100,-100,100),color = colorManager.Cyan,width = default_width),Line(Xyz(100,100,100),Xyz(-100,100,100),color = colorManager.Cyan,width = default_width)] ,polygons = [Polygon(Xyz(100,100,100),Xyz(100,-100,100),Xyz(100,-100,-100),Xyz(100,100,-100),color = colorManager.Cyan,width = default_width),Polygon(Xyz(-100,100,100),Xyz(-100,-100,100),Xyz(-100,-100,-100),Xyz(-100,100,-100),color = colorManager.Cyan,width = default_width)])
         threeDManager.Current.addObjects(self.cube)
@@ -88,10 +88,8 @@ class threeDTestManager(base_classes.baseManager):
         pyg.draw.aaline(gameManager.Current.scenes["Main"],colorManager.White,Xy(gameManager.Current.scenes["Main"].get_size())//2-Xy(5,0),Xy(gameManager.Current.scenes["Main"].get_size())//2+Xy(5,0))
 
         if debugManager.Current:
-            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("FPS: "+str(gameManager.Current.actual_fps),True,colorManager.White),Xy(5)) # difference is 17 y
-            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("∆T: "+str(gameManager.Current.delta_time),True,colorManager.White),Xy(5,21))
-            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("FOV: "+str(threeDManager.Current.fov),True,colorManager.White),Xy(5,38))
-            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("Pos: "+str(threeDManager.Current.relativePos),True,colorManager.White),Xy(5,55))
+            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("FOV: "+str(threeDManager.Current.fov),True,colorManager.White),Xy(5,55))
+            gameManager.Current.scenes["Main"].blit(pygameManager.Current.very_small_font.render("Pos: "+str(threeDManager.Current.relativePos),True,colorManager.White),Xy(5,72))
                 
     def onExit(self):
         threeDManager.Current.exit()
