@@ -31,6 +31,9 @@ keydownRepeatTime = 0.01
 # x = right
 # y = away from camera
 # z = up
+# Nu = roll
+# Phi = Pitch
+# Theta = Yaw
 
 class Effect():
 
@@ -93,9 +96,9 @@ class threeDManager(base_classes.baseManager):
             self.relativePos = Xyz(0)
             self.zoom = 50
             self.fov = 90
-            self.forward = self.calculateNewPoint(Xyz(0,1,0),self.effects,True,original = True).getNormalised()
-            self.up = self.calculateNewPoint(Xyz(0,0,1),self.effects,True,original = True).getNormalised()
-            self.right = self.calculateNewPoint(Xyz(1,0,0),self.effects,True,original = True).getNormalised()
+            self.forward = self.calculateNewPoint(Xyz(0,1,0),self.effects,True).getNormalised()
+            self.up = self.calculateNewPoint(Xyz(0,0,1),self.effects,True).getNormalised()
+            self.right = self.calculateNewPoint(Xyz(1,0,0),self.effects,True).getNormalised()
             for effect in self.effects:
                 if effect.direction == "Zoom":
                     self.zoom += effect.magnitude
@@ -121,34 +124,67 @@ class threeDManager(base_classes.baseManager):
                     case "FOV":
                         self.fov -= effect.magnitude
             
-            if len(self.effects) >= 100:
-                effectTheta = Effect("Theta",0)
-                effectPhi = Effect("Phi",0)
-                effectNu = Effect("Nu",0)
-                effectFOV = Effect("FOV",0)
-                effects = [effectTheta,effectPhi,effectNu,effectFOV]
-                for effect in self.effects: # "Theta"; "Phi"; "Nu"; "FOV"; "lRight"; "lForward"; "lUp" # "Right"; "Forward"; "Up";
-                    if effect.direction == "Theta":
-                        effectTheta.magnitude += effect.magnitude
-                    elif effect.direction == "Phi":
-                        effectPhi.magnitude += effect.magnitude
-                    elif effect.direction == "Nu":
-                        effectNu.magnitude += effect.magnitude
-                    elif effect.direction == "FOV":
-                        effectFOV.magnitude += effect.magnitude
-                xyz = self.calculateNewPoint(Xyz(0),self.effects,original = True) + self.calculateNewOffset(Xyz(0),self.effects)
-                effects.append(Effect("lRight",round(xyz.x)))
-                effects.append(Effect("lForward",round(xyz.y)))
-                effects.append(Effect("lUp",round(xyz.z)))
+            if len(self.effects) >= 1:
+                self.effects = self.simplifyEffects(self.effects)
 
-                to_remove = []
-                for effect in effects:
-                    if round(effect.magnitude) == 0:
-                        to_remove.append(effect)
-                for effect in to_remove:
-                    effects.remove(effect)
+        #self.resetMappedPositions()
 
-                self.effects = effects
+    def simplifyEffects(self,effects:list) -> list:
+        effectTheta = Effect("Theta",0)
+        effectPhi = Effect("Phi",0)
+        effectNu = Effect("Nu",0)
+        effectFOV = Effect("FOV",0)
+        right = Xyz(1,0,0)
+        up = Xyz(0,0,1)
+        forward = Xyz(0,1,0)
+        xyz = Xyz(0)
+        
+        for effect in effects: # "Theta"; "Phi"; "Nu"; "FOV"; "lx"; "ly"; "lz"; # "Right"; "Forward"; "Up";
+            match effect.direction:
+                case "Theta":
+                    effectTheta.magnitude += effect.magnitude
+                    right = self.calculateNewPoint(right,[Effect("Theta",effect.magnitude)],True).getNormalised()
+                    up = self.calculateNewPoint(up,[Effect("Theta",effect.magnitude)],True).getNormalised()
+                    forward = self.calculateNewPoint(forward,[Effect("Theta",effect.magnitude)],True).getNormalised()
+                case "Phi":
+                    effectPhi.magnitude += effect.magnitude
+                    right = self.calculateNewPoint(right,[Effect("Phi",effect.magnitude)],True).getNormalised()
+                    up = self.calculateNewPoint(up,[Effect("Phi",effect.magnitude)],True).getNormalised()
+                    forward = self.calculateNewPoint(forward,[Effect("Phi",effect.magnitude)],True).getNormalised()
+                case "Nu":
+                    effectNu.magnitude += effect.magnitude
+                    right = self.calculateNewPoint(right,[Effect("Nu",effect.magnitude)],True).getNormalised()
+                    up = self.calculateNewPoint(up,[Effect("Nu",effect.magnitude)],True).getNormalised()
+                    forward = self.calculateNewPoint(forward,[Effect("Nu",effect.magnitude)],True).getNormalised()
+                case "FOV":
+                    effectFOV.magnitude += effect.magnitude
+                case "lx":
+                    xyz.x += effect.magnitude
+                case "ly":
+                    xyz.y += effect.magnitude
+                case "lz":
+                    xyz.z += effect.magnitude
+                case "Right":
+                    xyz -= right*effect.magnitude                    
+                case "Forward":
+                    xyz += forward*effect.magnitude
+                case "Up":
+                    xyz -= up*effect.magnitude 
+        
+        neweffects = [effectFOV,effectTheta,effectPhi,effectNu]
+        neweffects.append(Effect("lx",xyz.x))
+        neweffects.append(Effect("ly",xyz.y))
+        neweffects.append(Effect("lz",xyz.z))
+
+        to_remove = []
+        for effect in neweffects:
+            if effect.magnitude == 0:
+                to_remove.append(effect)
+        for effect in to_remove:
+            neweffects.remove(effect)
+
+        return neweffects
+
 
     def addObjects(self,*objects):
         with self.display_lock:
@@ -156,87 +192,75 @@ class threeDManager(base_classes.baseManager):
     
     def getMappedPosition(self,xyz):
         if xyz not in self.mappedPositions.keys():
-            self.mappedPositions[xyz] = self.calculateNewPoint(xyz,self.effects,original = True)
+            self.mappedPositions[xyz] = self.calculateNewPoint(xyz,self.effects)
         if xyz not in self.positionsUpdated:
             self.positionsUpdated.append(xyz)
         return self.mappedPositions[xyz]
 
     def getFullyMappedXyPosition(self,xyz):
-        return self.calculateNewXyPoint(self.mappedOffset+self.getMappedPosition(xyz))
+        temp = self.getMappedPosition(xyz)
+        return self.calculateNewXyPoint(self.mappedOffset+temp)
 
     def getFullyMappedXyPositions(self,xyzs):
         return [self.getFullyMappedXyPosition(xyz) for xyz in xyzs]
         
-    def calculateNewPoint(self,xyz,effects,cardinal_direction = False,original = True):                       
+    def calculateNewPoint(self,xyz,effects,cardinal_direction = False):                       
         newXyz = Xyz(xyz)
 
-        if original:
+        if not cardinal_direction:
             for effect in effects:
                 match effect.direction:
-                    case "lRight":
+                    case "lx":
                         newXyz.x+= effect.magnitude
-                    case "lForward":
+                    case "ly":
                         newXyz.y+= effect.magnitude
-                    case "lUp":
+                    case "lz":
                         newXyz.z+= effect.magnitude
 
         radius = newXyz.getMagnitude()
-
-        theta = 0
-        phi = 0
-        nu = 0
-        forward = 0 # y
-        right = 0 # x
-        up = 0 # z
                 
         for effect in effects:
             match effect.direction:
                 case "Phi":
                     if radius == 0:
                         continue
-                    phi += effect.magnitude
                     theta = math.acos(newXyz.z/radius)
                     if cardinal_direction:
                         phi = math.atan2(newXyz.y,newXyz.x) - effect.magnitude
                     else:
                         phi = math.atan2(newXyz.y,newXyz.x) + effect.magnitude
-                    newXyz = Xyz(radius*math.sin(theta)*math.cos(phi),radius*math.sin(theta)*math.sin(phi),radius*math.cos(theta))
+                    newXyz = Xyz(radius*math.sin(theta)*math.cos(phi),radius*math.sin(theta)*math.sin(phi),newXyz.z)
                 case "Theta":
                     if radius == 0:
-                        continue  
-                    theta += effect.magnitude          
+                        continue         
                     theta = math.acos(newXyz.x/radius)
                     if cardinal_direction:
                         phi = math.atan2(newXyz.y,newXyz.z) - effect.magnitude
                     else:
                         phi = math.atan2(newXyz.y,newXyz.z) + effect.magnitude
-                    newXyz = Xyz(radius*math.cos(theta),radius*math.sin(theta)*math.sin(phi),radius*math.sin(theta)*math.cos(phi))
+                    newXyz = Xyz(newXyz.x,radius*math.sin(theta)*math.sin(phi),radius*math.sin(theta)*math.cos(phi))
                 case "Nu":
                     if radius == 0:
                         continue
-                    nu += effect.magnitude
                     theta = math.acos(newXyz.y/radius)
                     if cardinal_direction:
                         phi = math.atan2(newXyz.x,newXyz.z) - effect.magnitude
                     else:
                         phi = math.atan2(newXyz.x,newXyz.z) + effect.magnitude
-                    newXyz = Xyz(radius*math.sin(theta)*math.sin(phi),radius*math.cos(theta),radius*math.sin(theta)*math.cos(phi))
+                    newXyz = Xyz(radius*math.sin(theta)*math.sin(phi),newXyz.y,radius*math.sin(theta)*math.cos(phi))
                 case "Forward":
                     if not cardinal_direction:
-                        forward += effect.magnitude
                         newXyz.y += effect.magnitude
-                        radius = math.sqrt(newXyz.x**2 + newXyz.y**2 + newXyz.z**2)
+                        radius = newXyz.getMagnitude()
                 case "Right":
                     if not cardinal_direction:
-                        right += effect.magnitude
                         newXyz.x -= effect.magnitude
-                        radius = math.sqrt(newXyz.x**2 + newXyz.y**2 + newXyz.z**2)
+                        radius = newXyz.getMagnitude()
                 case "Up":
                     if not cardinal_direction:
-                        up += effect.magnitude
                         newXyz.z -= effect.magnitude
-                        radius = math.sqrt(newXyz.x**2 + newXyz.y**2 + newXyz.z**2)
-                
+                        radius = newXyz.getMagnitude()
+    
         return newXyz
 
     def calculateNewOffset(self,offset,effects):
@@ -294,11 +318,14 @@ class threeDManager(base_classes.baseManager):
                     radius = int(round((self.getFullyMappedXyPosition(sphere.center+self.right*sphere.radius)-self.getFullyMappedXyPosition(sphere.center)).getMagnitude()))
                     if radius > 9999 or radius <= 0 or max(centre) > 9999 or min(centre) < -9999:
                         continue
+                    #print(radius)
                     formed_circle = (gameManager.Current.scenes[self.scene],*centre,radius,sphere.color)
                     pyg_gfxdraw.aacircle(*formed_circle)
                     if obj3D.opaque and sphere.solid_fill:
                         pyg_gfxdraw.filled_circle(*formed_circle)
             if debugManager.Current:
+                pyg.draw.aaline(gameManager.Current.scenes[self.scene],colorManager.Green,*self.getFullyMappedXyPositions([Xyz(0),self.right*15]))
+                pyg.draw.aaline(gameManager.Current.scenes[self.scene],colorManager.Green,*self.getFullyMappedXyPositions([Xyz(0),self.up*15]))
                 pyg.draw.aaline(gameManager.Current.scenes[self.scene],colorManager.Yellow,*self.getFullyMappedXyPositions([Xyz(0),Xyz(0,15,0)]))
                 centre = self.getFullyMappedXyPosition(Xyz(0)).__round__()
                 if not (max(centre)>9999 or min(centre)<-9999):
@@ -439,15 +466,15 @@ class threeDObject(base_classes.baseObject):
         max_distance = 0
         for line in self.lines:
             for point in line:
-                if point.getMagnitude() >= max_distance:
-                    max_distance = point.getMagnitude()
+                if self.getMappedPosition(point).getMagnitude() >= max_distance:
+                    max_distance = self.getMappedPosition(point).getMagnitude()
         for polygons in self.polygons:
             for point in polygons:
-                if point.getMagnitude() >= max_distance:
-                    max_distance = point.getMagnitude()
+                if self.getMappedPosition(point).getMagnitude() >= max_distance:
+                    max_distance = self.getMappedPosition(point).getMagnitude()
         for sphere in self.spheres:
-            if sphere.centre.getMagnitude()+sphere.radius >= max_distance:
-                    max_distance = sphere.centre.getMagnitude()+sphere.radius 
+            if self.getMappedPosition(sphere.centre).getMagnitude()+abs(sphere.radius) >= max_distance:
+                    max_distance = self.getMappedPosition(sphere.centre).getMagnitude()+abs(sphere.radius) 
         self.radius = max_distance
             
     def getMappedPosition(self,xyz):
@@ -583,6 +610,14 @@ class defaultThreeDControlScheme(threeDControlSchemeBase):
                         callbackManager.Current.call("RollLeft")
                     case pyg.K_e:
                         callbackManager.Current.call("RollRight")
+                    case pyg.K_x:
+                        threeDManager.Current.addEffects(Effect("Theta",angleMoveAmount*2))
+                    case pyg.K_c:
+                        threeDManager.Current.addEffects(Effect("Theta",-angleMoveAmount*2))
+                    case pyg.K_v:
+                        threeDManager.Current.addEffects(Effect("Phi",angleMoveAmount*2))
+                    case pyg.K_b:
+                        threeDManager.Current.addEffects(Effect("Phi",-angleMoveAmount*2))
                         
             elif event.type == pyg.MOUSEMOTION and event.buttons[LEFTMOUSEBUTTON] == 1:
                 threeDManager.Current.addEffects(Effect("Phi", event.rel[0]*math.radians(0.25)),Effect("Theta", -event.rel[1]*math.radians(0.25)))
