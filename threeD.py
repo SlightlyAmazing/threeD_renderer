@@ -32,8 +32,8 @@ keydownRepeatTime = 0.01
 # y = away from camera
 # z = up
 # Nu = roll
-# Phi = Pitch
-# Theta = Yaw
+# Phi = Yaw
+# Theta = Pitch
 
 class Effect():
 
@@ -93,7 +93,7 @@ class threeDManager(base_classes.baseManager):
         with self.display_lock:
             self.mappedPositions = {}
             self.mappedOffset = self.calculateNewOffset(self.offset,self.effects)
-            self.relativePos = Xyz(0)
+            self.relativePos = round(-Xyz(0))
             self.zoom = 50
             self.fov = 90
             self.forward = self.calculateNewPoint(Xyz(0,1,0),self.effects,True).getNormalised()
@@ -107,6 +107,8 @@ class threeDManager(base_classes.baseManager):
 
             for threeDObject in self.currentPositions:
                 threeDObject.resetMappedPositions()
+                
+            self.simplifyEffects(self.effects)
         
     def addEffects(self,*effects):
         with self.display_lock:
@@ -124,35 +126,40 @@ class threeDManager(base_classes.baseManager):
                     case "FOV":
                         self.fov -= effect.magnitude
             
-            if len(self.effects) >= 1:
-                self.effects = self.simplifyEffects(self.effects)
+            #if len(self.effects) >= 1:
+             #   self.effects = self.simplifyEffects(self.effects)
+                #print(self.effects)
 
         #self.resetMappedPositions()
 
     def simplifyEffects(self,effects:list) -> list:
-        effectTheta = Effect("Theta",0)
-        effectPhi = Effect("Phi",0)
-        effectNu = Effect("Nu",0)
         effectFOV = Effect("FOV",0)
         right = Xyz(1,0,0)
         up = Xyz(0,0,1)
         forward = Xyz(0,1,0)
         xyz = Xyz(0)
+        polar = 0
+        azimuth = 0
+        roll = 0
+
+        neweffects = [effectFOV]
         
         for effect in effects: # "Theta"; "Phi"; "Nu"; "FOV"; "lx"; "ly"; "lz"; # "Right"; "Forward"; "Up";
             match effect.direction:
                 case "Theta":
-                    effectTheta.magnitude += effect.magnitude
+                    polar += effect.magnitude*math.sin(roll+math.pi/2)
+                    azimuth -= effect.magnitude*math.sin(roll)
                     right = self.calculateNewPoint(right,[Effect("Theta",effect.magnitude)],True).getNormalised()
                     up = self.calculateNewPoint(up,[Effect("Theta",effect.magnitude)],True).getNormalised()
                     forward = self.calculateNewPoint(forward,[Effect("Theta",effect.magnitude)],True).getNormalised()
                 case "Phi":
-                    effectPhi.magnitude += effect.magnitude
+                    polar += effect.magnitude*math.sin(roll)
+                    azimuth += effect.magnitude*math.sin(roll+math.pi/2)
                     right = self.calculateNewPoint(right,[Effect("Phi",effect.magnitude)],True).getNormalised()
                     up = self.calculateNewPoint(up,[Effect("Phi",effect.magnitude)],True).getNormalised()
                     forward = self.calculateNewPoint(forward,[Effect("Phi",effect.magnitude)],True).getNormalised()
                 case "Nu":
-                    effectNu.magnitude += effect.magnitude
+                    roll += effect.magnitude
                     right = self.calculateNewPoint(right,[Effect("Nu",effect.magnitude)],True).getNormalised()
                     up = self.calculateNewPoint(up,[Effect("Nu",effect.magnitude)],True).getNormalised()
                     forward = self.calculateNewPoint(forward,[Effect("Nu",effect.magnitude)],True).getNormalised()
@@ -169,9 +176,22 @@ class threeDManager(base_classes.baseManager):
                 case "Forward":
                     xyz += forward*effect.magnitude
                 case "Up":
-                    xyz -= up*effect.magnitude 
-        
-        neweffects = [effectFOV,effectTheta,effectPhi,effectNu]
+                    xyz -= up*effect.magnitude
+ 
+        print(effects)
+        #temp = math.copysign(math.acos(forward.y/Xyz(forward.x,forward.y,0).getMagnitude()),forward.x)
+        print(polar)
+        neweffects.append(Effect("Theta",polar))
+
+        #temp = math.copysign(math.acos(forward.y/Xyz(0,forward.y,forward.z).getMagnitude()),forward.z)
+        print(azimuth)
+        neweffects.append(Effect("Phi",azimuth))
+
+        #print(up,effects)
+        #temp = math.copysign(math.acos(up.z/Xyz(up.x,0,up.z).getMagnitude()),-up.x)
+        print(roll)
+        neweffects.append(Effect("Nu",roll))
+
         neweffects.append(Effect("lx",xyz.x))
         neweffects.append(Effect("ly",xyz.y))
         neweffects.append(Effect("lz",xyz.z))
@@ -183,8 +203,9 @@ class threeDManager(base_classes.baseManager):
         for effect in to_remove:
             neweffects.remove(effect)
 
-        return neweffects
+        self.relativePos = round(-xyz)
 
+        return neweffects
 
     def addObjects(self,*objects):
         with self.display_lock:
